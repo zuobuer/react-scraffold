@@ -4,13 +4,12 @@
   "description": "react project scaffold",
   "main": "index.js",
   "bin": {
-    "start": "bin/react-scaffold.js"
+    "react-scraffold": "bin/react-scraffold.js"
   },
   "engines": {
     "node": ">=6"
   },
   "scripts": {
-    "test": "sudo npm link",
     "start": "node ./index.js"
   },
   "repository": {
@@ -28,7 +27,8 @@
   "homepage": "https://github.com/zuobuer/react-scraffold#readme",
   "dependencies": {
     "chalk": "^2.4.1",
-    "commander": "^2.19.0"
+    "commander": "^2.19.0",
+    "fs-extra": "^7.0.1"
   },
   "devDependencies": {}
 }
