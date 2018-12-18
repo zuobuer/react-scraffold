@@ -11,8 +11,8 @@ const init = require("./../scripts/init");
 const addView = require("./../scripts/addView");
 const templatePath = path.resolve(__dirname, "./../template");
 
-const componentTypes = ["class component", "pure function component", "view component"];
-const abbreviateType = ["C", "PC", "V"];
+const componentTypes = ["function component", "pure component", "view component"];
+const abbreviateType = ["F", "PC", "V"];
 
 program
     .version('0.1.0', '-v, --version')
@@ -30,11 +30,10 @@ program
         })
     })
 program
-    .command("add <viewname>")
-    .alias("av")
+    .command("add <component>")
     .description("add a component")
     .option("-t, --type <component type>", "Which exec type component to add")
-    .action((viewname, options) => {
+    .action((component, options) => {
         console.log(options.type);
         if (abbreviateType.indexOf(options.type) === -1) {
             console.error(`  ${chalk.red('add a component error, limit type ')}`);
@@ -44,13 +43,16 @@ program
             return;
         }
         switch (options.type) {
-            case "C":
+            case "F":   
+                // create a function componnet 
                 break;
             case "PC":
+                // create a pure component
                 break;
             case "V":
+                // create a  view component
                 addView({
-                    viewname
+                    component
                 })
                 break;
         }
