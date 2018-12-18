@@ -30,13 +30,15 @@ program
 // 必须在.parse()之前，因为node的emit()是即时的
 
 program
-    .command("init")
+    .command("init <project-name>")
     .alias("i")
     .description("init project")
-    .action(() => {
+    .action((projectName) => {
+        // console.log(projectName)
         init({
             templatePath,
             appPath,
+            projectName,
         })
     })
 
