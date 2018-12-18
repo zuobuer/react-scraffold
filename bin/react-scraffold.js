@@ -6,17 +6,26 @@
 
 const program = require('commander');
 const path = require("path");
+const fs = require("fs-extra");
 const chalk = require("chalk");
 const init = require("./../scripts/init");
-const addView = require("./../scripts/addView");
-const templatePath = path.resolve(__dirname, "./../template");
+const addVCC = require("../scripts/add-view-component");
+const addSFC = require("../scripts/add-sfc-component");
+const addPCC = require("../scripts/add-pure-component");
 
-const componentTypes = ["function component", "pure component", "view component"];
-const abbreviateType = ["F", "PC", "V"];
+const componentTypes = ["stateless function component", "pure class component", "view class component"];
+const abbreviateType = ["SFC", "PCC", "VCC"];
+
+// 当前工作目录
+const appPath = path.resolve();
+const jsonPath = path.resolve("package.json");
+const viewsPath = path.resolve("./src/views");
+const componentsPath = path.resolve("./src/components");
+const templatePath = path.resolve(__dirname, "./../template");
 
 program
     .version('0.1.0', '-v, --version')
-    // .option("-t, --type <component type>", `add some component type, current limt ${chalk.green("C、PC、V")}`)
+// .option("-t, --type <component type>", `add some component type, current limt ${chalk.green("C、PC、V")}`)
 
 // 必须在.parse()之前，因为node的emit()是即时的
 
@@ -27,32 +36,51 @@ program
     .action(() => {
         init({
             templatePath,
+            appPath,
         })
     })
+
 program
-    .command("add <component>")
+    .command("add")
+    .alias("a")
     .description("add a component")
-    .option("-t, --type <component type>", "Which exec type component to add")
-    .action((component, options) => {
-        console.log(options.type);
-        if (abbreviateType.indexOf(options.type) === -1) {
+    .option("-t, --type <component type>", `which type component to add, you can use ${chalk.green(abbreviateType)} map to ${chalk.green(componentTypes)}`)
+    .option("-n, --name <component name>", "which name to set for component")
+    .action((options) => {
+        if (!fs.existsSync(jsonPath)) {
+            console.error(`${chalk.red(`there is no package.json in ${appPath}/`)}`)
+            console.error(`${chalk.white(`you can run ${chalk.green(' react-scraffold init ')} first`)}`)
+            return;
+        }
+        const type = options.type.toUpperCase();
+        const name = options.name;
+        if (abbreviateType.indexOf(type) === -1) {
             console.error(`  ${chalk.red('add a component error, limit type ')}`);
             console.log(`  ${chalk.green(abbreviateType[0])} => ${chalk.green(componentTypes[0])}`);
             console.log(`  ${chalk.green(abbreviateType[1])} => ${chalk.green(componentTypes[1])}`);
             console.log(`  ${chalk.green(abbreviateType[2])} => ${chalk.green(componentTypes[2])}`);
             return;
         }
-        switch (options.type) {
-            case "F":   
+        switch (type) {
+            case "SFC":
                 // create a function componnet 
+                addSFC({
+                    name,
+                    componentsPath
+                })
                 break;
-            case "PC":
+            case "PCC":
                 // create a pure component
+                addPCC({
+                    name,
+                    componentsPath
+                })
                 break;
-            case "V":
+            case "VCC":
                 // create a  view component
-                addView({
-                    component
+                addVCC({
+                    name,
+                    viewsPath,
                 })
                 break;
         }
