@@ -7,7 +7,7 @@
     "react-scraffold": "bin/react-scraffold.js"
   },
   "engines": {
-    "node": ">=8.6.0"
+    "node": ">=10.6.0"
   },
   "scripts": {
     "start": "node ./index.js"
@@ -29,7 +29,8 @@
     "chalk": "^2.4.1",
     "commander": "^2.19.0",
     "fs-extra": "^7.0.1",
-    "prompts": "^2.0.0"
+    "prompts": "^2.0.0",
+    "semver": "^5.6.0"
   },
   "devDependencies": {}
 }

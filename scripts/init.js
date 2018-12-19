@@ -3,7 +3,8 @@ const fs = require("fs-extra");
 const path = require("path");
 const dns = require("dns");
 const execSync = require('child_process').execSync;
-const prompts = require("prompts")
+const prompts = require("prompts");
+const semver = require('semver');
 
 module.exports = async ({
     appPath,
@@ -11,13 +12,96 @@ module.exports = async ({
     templatePath
 }) => {
 
+    checkNodeVersion();
     const projectPath = `${appPath}/${projectName}`;
-    let response;
+    await ensureProjectPath(projectPath);
+    let packageJson = {
+        name: projectName,
+        version: "0.1.0",
+        description: "",
+        scripts: {
+            "dev": "webpack-dev-server --config ./webpack.dev.config.js"
+        },
+        repository: "",
+        author: "",
+        license: "MIT",
+        private: true,
+    }
+    writePackageJson(projectPath, packageJson);
+    try {
+        fs.copySync(templatePath, projectPath);
+    } catch (error) {
+        console.error(`${chalk.red(error)}`)
+        process.exit(1);
+    }
+
+    // check use yarn or npm
+    console.log(`${chalk.green(`Installing packages. This might take a couple of minutes.`)}`);
+    const useYarn = shouldUseYarn();
+    let isOnline = await checkIfOnline().then(isOnline => isOnline);
+    if (!isOnline) {
+        console.log(`${chalk.red(`It like there are some problem with you network!`)}`);
+        console.log(`${chalk.red(`Please check it !`)}`);
+        try {
+            fs.removeSync(projectPath);
+        } catch (err) {/** 忽略该错误 */ }
+        process.exit(1);
+    }
+    installDependencies(projectPath, useYarn);
+    installDevDependencies(projectPath, useYarn);
+
+    console.log();
+    console.log(`${chalk.green(`Installing packages success!`)}`);
+    console.log();
+    console.log(`Use \`${useYarn ? 'yarn add' : ' npm install'} <pkg>\` afterwards to install a package and`);
+    console.log(`save it as a dependency in the package.json file.`);
+    console.log();
+    console.log(`${chalk.yellow(`cd ${chalk.green(projectName)}, then hack it.`)}`);
+}
+
+function shouldUseYarn() {
+    try {
+        execSync('yarnpkg --version', { stdio: 'ignore' });
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function checkNodeVersion() {
+    try {
+        var version = execSync('node --version').toString();
+        if (!semver.gte(process.version, ">=8.9.0")) {
+            console.log(
+                chalk.yellow(
+                    `You are using Node ${process.version} \n\n` +
+                    `Please update to Node 8.9.0 or higher for a better, fully supported experience.\n`
+                )
+            );
+            process.exit(1);
+        }
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function checkIfOnline() {
+    return new Promise(resolve => {
+        dns.lookup("weibo.com", err => {
+            resolve(err == null)
+        })
+    })
+}
+
+async function ensureProjectPath(projectPath) {
     console.log();
     console.log(`${chalk.green(`Create a new React project in ${projectPath}`)}`);
+    console.log();
     if (fs.existsSync(projectPath)) {
         console.error(`${chalk.yellow(`It seem to the fold ${projectPath} already existed.`)}`);
-        response = await prompts({
+        console.log();
+        let response = await prompts({
             type: 'confirm',
             name: 'delete',
             message: `Do you want to remove it`,
@@ -41,20 +125,19 @@ module.exports = async ({
         }
     }
     console.log();
-
     fs.ensureDirSync(projectPath);
+}
 
-    // write package.json to projectPath
+async function inputPackageJson(opts) {
     // 询问，初始化 package.json
     console.log(`${chalk.white("Creating a package.json file.")}`);
     console.log(`${chalk.white("It only covers the most common items, and tries to guess sensible defaults.")}`);
     console.log(`${chalk.white("Press ^C at any time to quit.")}`);
-    let packageJson = {};
     respone = await prompts([{
         type: 'text',
         name: 'name',
         message: `package name:`,
-        initial: projectName,
+        initial: (opts && opts.projectName) || "new-react-scraffold-app",
     }, {
         type: 'text',
         name: 'version',
@@ -92,15 +175,14 @@ module.exports = async ({
         initial: 'ISC',
     }], {
             onCancel: () => {
-                console.log(`${chalk.red('Aborted.')}`)
-                fs.removeSync(projectPath);
-                process.exit(1);
+                opts && opts.cancle && opts.cancle()
             },
         }
     );
-    packageJson = respone;
-    packageJson.scripts = {};
+    return respone;
+}
 
+async function printPackageJson(projectPath, packageJson) {
     console.log();
     console.log(`About to write to ${projectPath}/package.json:`);
     console.log();
@@ -114,9 +196,8 @@ module.exports = async ({
     console.log(` "scripts": {`);
     console.log(`  }`);
     console.log("}")
-
     console.log()
-    response = await prompts({
+    let response = await prompts({
         type: 'confirm',
         name: 'sure',
         message: `Is this ok`,
@@ -133,6 +214,9 @@ module.exports = async ({
         fs.removeSync(projectPath);
         process.exit(1);
     }
+}
+
+function writePackageJson(projectPath, packageJson) {
     try {
         fs.writeFileSync(
             path.join(projectPath, 'package.json'),
@@ -143,27 +227,10 @@ module.exports = async ({
         fs.removeSync(projectPath);
         process.exit(1);
     }
+    return;
+}
 
-    // copy project struct 
-    try {
-        fs.copySync(templatePath, projectPath);
-    } catch (error) {
-        console.error(`${chalk.red(error)}`)
-        process.exit(1);
-    }
-
-    // check use yarn or npm
-    console.log(`${chalk.green(`Installing packages. This might take a couple of minutes.`)}`);
-    const useYarn = shouldUseYarn();
-    let isOnline = await checkIfOnline().then(isOnline => isOnline);
-    if (!isOnline) {
-        console.log(`${chalk.red(`It like there are some problem with you network!`)}`);
-        console.log(`${chalk.red(`Please check it !`)}`);
-        try {
-            fs.removeSync(projectPath);
-        } catch (err) {/** 忽略该错误 */ }
-        process.exit(1);
-    }
+function installDependencies(projectPath, useYarn) {
     if (useYarn) {
         try {
             execSync(`cd ${projectPath} && yarn add react react-dom`);
@@ -179,29 +246,45 @@ module.exports = async ({
             console.log(error)
         }
     }
-    console.log();
-    console.log(`${chalk.green(`Installing packages success!`)}`);
-    console.log();
-    console.log(`Use \`${useYarn ? 'yarn add' : ' npm install'} <pkg>\` afterwards to install a package and`);
-    console.log(`save it as a dependency in the package.json file.`);
-    console.log();
-    console.log(`${chalk.yellow(`cd ${chalk.green(projectName)}, then hack it.`)}`);
 }
 
-function shouldUseYarn() {
-    try {
-        execSync('yarnpkg --version', { stdio: 'ignore' });
-        return true;
-    } catch (e) {
-        return false;
+function installDevDependencies(projectPath, useYarn) {
+    const devDependencies = [
+        "@babel/core",
+        "@babel/plugin-proposal-class-properties",
+        "@babel/plugin-proposal-decorators",
+        "@babel/preset-env",
+        "@babel/preset-react",
+        "autoprefixer",
+        "babel-loader",
+        "css-loader",
+        "file-loader",
+        "html-webpack-plugin",
+        "node-sass",
+        "postcss-loader",
+        "postcss-scss",
+        "sass-loader",
+        "style-loader",
+        "uglifyjs-webpack-plugin",
+        "url-loader",
+        "webpack",
+        "webpack-cli",
+        "webpack-dev-server"
+    ]
+    if (useYarn) {
+        try {
+            execSync(`cd ${projectPath} && yarn add --dev ${devDependencies.join(" ")}`);
+
+        } catch (error) {
+            fs.removeSync(projectPath);
+            console.log(error)
+        }
+    } else {
+        try {
+            execSync(`cd ${projectPath} && npm install --save-dev ${devDependencies.join(" ")}`);
+        } catch (error) {
+            fs.removeSync(projectPath);
+            console.log(error)
+        }
     }
-}
-
-
-function checkIfOnline() {
-    return new Promise(resolve => {
-        dns.lookup("weibo.com", err => {
-            resolve(err == null)
-        })
-    })
 }
